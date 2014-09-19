@@ -677,6 +677,10 @@ if (typeof module === 'object') {
         },
 
         setToolbarPosition: function () {
+            if (!this.toolbar) {
+                return this;
+            }
+
             var buttonHeight = 50,
                 selection = window.getSelection(),
                 range = selection.getRangeAt(0),

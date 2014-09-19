@@ -335,7 +335,9 @@ if (typeof module === 'object') {
         },
 
         bindTab: function (index) {
-            if (!this.options.bindTab) { return; }
+            if (!this.options.bindTab) {
+                return this;
+            }
 
             this.elements[index].addEventListener('keydown', function (e) {
                 if (e.which === 9) {

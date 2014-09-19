@@ -108,6 +108,7 @@ if (typeof module === 'object') {
             allowMultiParagraphSelection: true,
             anchorInputPlaceholder: 'Paste or type a link',
             anchorPreviewHideDelay: 500,
+            bindTab: true,
             buttons: ['bold', 'italic', 'underline', 'anchor', 'header1', 'header2', 'quote'],
             buttonLabels: false,
             checkLinkFormat: false,
@@ -334,6 +335,8 @@ if (typeof module === 'object') {
         },
 
         bindTab: function (index) {
+            if (!this.options.bindTab) { return; }
+
             this.elements[index].addEventListener('keydown', function (e) {
                 if (e.which === 9) {
                     // Override tab only for pre nodes

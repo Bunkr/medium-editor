@@ -677,6 +677,10 @@ if (typeof module === 'object') {
         },
 
         setToolbarPosition: function () {
+            if (!this.toolbar) {
+                return this;
+            }
+
             var buttonHeight = 50,
                 selection = window.getSelection(),
                 range = selection.getRangeAt(0),
@@ -732,6 +736,10 @@ if (typeof module === 'object') {
         },
 
         activateButton: function (tag) {
+            if (!this.toolbar) {
+                return;
+            }
+
             var el = this.toolbar.querySelector('[data-element="' + tag + '"]');
             if (el !== null && el.className.indexOf(this.options.activeButtonClass) === -1) {
                 el.className += ' ' + this.options.activeButtonClass;

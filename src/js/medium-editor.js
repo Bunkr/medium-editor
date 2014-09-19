@@ -1343,7 +1343,9 @@ if (typeof module === 'object') {
         },
 
         setPlaceholders: function () {
-            if (!this.options.placeholder) { return; }
+            if (!this.options.placeholder) {
+                return this;
+            }
 
             var i,
                 activatePlaceholder = function (el) {

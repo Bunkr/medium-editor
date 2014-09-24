@@ -163,7 +163,9 @@ if (typeof module === 'object') {
             var i,
                 addToolbar = false;
             for (i = 0; i < this.elements.length; i += 1) {
-                if (!this.options.disableEditing && !this.elements[i].getAttribute('data-disable-editing')) {
+                if(this.elements[i].getAttribute('contentEditable') !== 'false') {
+                    this.elements[i].setAttribute('data-contenteditable', this.elements[i].getAttribute('contentEditable'));
+                } else if (!this.options.disableEditing && !this.elements[i].getAttribute('data-disable-editing')) {
                     this.elements[i].setAttribute('contentEditable', true);
                 }
                 if (this.options.placeholder && !this.elements[i].getAttribute('data-placeholder')) {
@@ -1295,8 +1297,12 @@ if (typeof module === 'object') {
                 this.elements[i].removeEventListener('keyup', this.checkSelectionWrapper);
                 this.elements[i].removeEventListener('blur', this.checkSelectionWrapper);
                 this.elements[i].removeEventListener('paste', this.pasteWrapper);
-                this.elements[i].removeAttribute('contentEditable');
                 this.elements[i].removeAttribute('data-medium-element');
+                if (this.elements[i].getAttribute('data-contenteditable')) {
+                    this.elements[i].setAttribute('contentEditable', this.elements[i].getAttribute('data-contenteditable'));
+                } else {
+                    this.elements[i].removeAttribute('contentEditable');
+                }
             }
 
         },

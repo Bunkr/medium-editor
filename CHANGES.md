@@ -1,3 +1,32 @@
+1.9.13 / 2014-11-24
+===================
+
+* Adds a strikethrough option in buttonLabel
+* Now uses `options.elementsContainer` to calculate ID
+* Removes events during deactivate
+
+
+1.9.10 / 2014-11-17
+===================
+
+* Adds custom doc and win functionality, now you can specify the editor container
+* Minor bugfixes
+
+
+1.9.8 / 2014-10-21
+==================
+
+* Fixes 'this' out of scope
+
+
+1.9.7 / 2014-10-20
+==================
+
+* Adds justify buttons
+* Fix #308 by passing clipboard content through self.htmlEntities before inserting
+* Minor bug fixes
+
+
 1.9.4 / 2014-09-16
 ==================
 

@@ -6,7 +6,11 @@ Since I always had problems with bloated editors and I loved the simplicity of m
 
 MediumEditor has been written using vanilla JavaScript, no additional frameworks required.
 
-Tested on Google Chrome, Firefox and IE9+.
+## Browser Support
+
+![IE](https://cloud.githubusercontent.com/assets/398893/3528325/20373e76-078e-11e4-8e3a-1cb86cf506f0.png) | ![Chrome](https://cloud.githubusercontent.com/assets/398893/3528328/23bc7bc4-078e-11e4-8752-ba2809bf5cce.png) | ![Firefox](https://cloud.githubusercontent.com/assets/398893/3528329/26283ab0-078e-11e4-84d4-db2cf1009953.png) | ![Opera](https://cloud.githubusercontent.com/assets/398893/3528330/27ec9fa8-078e-11e4-95cb-709fd11dac16.png) | ![Safari](https://cloud.githubusercontent.com/assets/398893/3528331/29df8618-078e-11e4-8e3e-ed8ac738693f.png)
+--- | --- | --- | --- | --- |
+IE 9+ ✔ | Latest ✔ | Latest ✔ | Latest ✔ | Latest ✔ |
 
 [![NPM info](https://nodei.co/npm/medium-editor.png?downloads=true)](https://nodei.co/npm/medium-editor.png?downloads=true)
 
@@ -101,6 +105,10 @@ Medium Editor, by default, will show only the buttons listed above to avoid a hu
 * __unorderedlist__
 * __orderedlist__
 * __pre__
+* __justifyLeft__
+* __justifyFull__
+* __justifyCenter__
+* __justifyRight__
 * __image__ (this simply converts selected text to an image tag)
 * __indent__ (moves the selected text up one level)
 * __outdent__ (moves the selected text down one level)
@@ -280,54 +288,43 @@ The source files are located inside the __src__ directory.
 
 ```
  project  : medium-editor
- repo age : 11 months
- active   : 145 days
- commits  : 535
- files    : 56
+ repo age : 1 year, 6 months
+ active   : 190 days
+ commits  : 638
+ files    : 58
  authors  :
-   396	Davi Ferreira           74.0%
-    20	Maxime de Visscher      3.7%
-    12	Andy Yaco-Mink          2.2%
-     8	Derek Odegard           1.5%
-     8	Jarl Gunnar T. Flaten   1.5%
-     8	Pedro Nasser            1.5%
-     8	Seif                    1.5%
-     5	Martin Thurau           0.9%
-     5	OmniaGM                 0.9%
-     4	Sebastian Zuchmanski    0.7%
-     4	minikomi                0.7%
-     3	Andrew Hubbs            0.6%
-     3	Dmitri Cherniak         0.6%
-     3	Nikita Korotaev         0.6%
-     3	Troels Knak-Nielsen     0.6%
-     3	arol                    0.6%
-     3	ʞuıɯ-oɔɐʎ ʎpuɐ          0.6%
-     2	Ethan Turkeltaub        0.4%
-     2	Jacob Magnusson         0.4%
-     2	mako                    0.4%
-     1	Adam Mulligan           0.2%
-     1	Alberto Gasparin        0.2%
-     1	Bitdeli Chef            0.2%
-     1	Cenk Dölek             0.2%
-     1	David Collien           0.2%
-     1	David Hellsing          0.2%
-     1	Denis Gorbachev         0.2%
-     1	Diana Liao              0.2%
-     1	Jack Parker             0.2%
-     1	Jeff Welch              0.2%
-     1	Mark Kraemer            0.2%
-     1	Max                     0.2%
-     1	Maxime Dantec           0.2%
-     1	Maxime De Visscher      0.2%
-     1	Michael Kay             0.2%
-     1	Moore Adam              0.2%
-     1	Nic Malan               0.2%
-     1	Noah Paessel            0.2%
-     1	Pavel Linkesch          0.2%
+   451	Davi Ferreira           70.7%
+    20	Maxime de Visscher      3.1%
+    18	Andy Yaco-Mink          2.8%
+     8	Jarl Gunnar T. Flaten   1.3%
+     8	Seif                    1.3%
+     8	Derek Odegard           1.3%
+     8	Pedro Nasser            1.3%
+     7	OmniaGM                 1.1%
+     7	Alfonso (the fonz) de la Osa 1.1%
+     6	Pascal                  0.9%
+     6	Dayjo                   0.9%
+     5	Raul Matei              0.8%
+     5	Martin Thurau           0.8%
+     4	Sebastian Zuchmanski    0.6%
+     4	minikomi                0.6%
+     3	ʞuıɯ-oɔɐʎ ʎpuɐ  0.5%
+     3	Andrew Hubbs            0.5%
+     3	Dmitri Cherniak         0.5%
+     3	Troels Knak-Nielsen     0.5%
+     3	arol                    0.5%
+     3	Nikita Korotaev         0.5%
+     3	Pavel Linkesch          0.5%
+     2	mako                    0.3%
+     2	Alexander Hofbauer      0.3%
+     2	Son Tran-Nguyen         0.3%
+     2	Ethan Turkeltaub        0.3%
+     2	Jacob Magnusson         0.3%
+     1	Richard Park            0.2%
      1	Robert Koritnik         0.2%
      1	Sarah Squire            0.2%
      1	Scott Carleton          0.2%
-     1	Søren Torp Petersen     0.2%
+     1	Søren Torp Petersen    0.2%
      1	Tom MacWright           0.2%
      1	happyaccidents          0.2%
      1	mako yass               0.2%
@@ -338,6 +335,33 @@ The source files are located inside the __src__ directory.
      1	typify                  0.2%
      1	waffleio                0.2%
      1	zzjin                   0.2%
+     1	Nic Malan               0.2%
+     1	Alberto Gasparin        0.2%
+     1	Bitdeli Chef            0.2%
+     1	Carlos Alexandre Fuechter 0.2%
+     1	Cenk Dölek            0.2%
+     1	David Collien           0.2%
+     1	David Hellsing          0.2%
+     1	Denis Gorbachev         0.2%
+     1	Diana Liao              0.2%
+     1	Harshil Shah            0.2%
+     1	IndieSquidge            0.2%
+     1	Ionică Bizău          0.2%
+     1	Jack Parker             0.2%
+     1	Jeff Welch              0.2%
+     1	Johann Troendle         0.2%
+     1	Mark Kraemer            0.2%
+     1	Max                     0.2%
+     1	Maxime Dantec           0.2%
+     1	Maxime De Visscher      0.2%
+     1	Michael Kay             0.2%
+     1	Moore Adam              0.2%
+     1	Adam Mulligan           0.2%
+     1	Nick Semenkovich        0.2%
+     1	Noah Paessel            0.2%
+     1	Patrick Kempff          0.2%
+     1	Peleg Rosenthal         0.2%
+     1	Randson Oliveira        0.2%
 ```
 
 ## License

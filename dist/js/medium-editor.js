@@ -6,6 +6,13 @@ function MediumEditor(elements, options) {
 if (typeof module === 'object') {
     module.exports = MediumEditor;
 }
+// AMD support
+else if (typeof define === 'function' && define.amd) {
+    define(function () {
+        'use strict';
+        return MediumEditor;
+    });
+}
 
 (function (window, document) {
     'use strict';
@@ -40,7 +47,7 @@ if (typeof module === 'object') {
         var i,
             len,
             ranges,
-            sel = window.getSelection();
+            sel = this.options.contentWindow.getSelection();
         if (sel.getRangeAt && sel.rangeCount) {
             ranges = [];
             for (i = 0, len = sel.rangeCount; i < len; i += 1) {
@@ -54,7 +61,7 @@ if (typeof module === 'object') {
     function restoreSelection(savedSel) {
         var i,
             len,
-            sel = window.getSelection();
+            sel = this.options.contentWindow.getSelection();
         if (savedSel) {
             sel.removeAllRanges();
             for (i = 0, len = savedSel.length; i < len; i += 1) {
@@ -66,7 +73,7 @@ if (typeof module === 'object') {
     // http://stackoverflow.com/questions/1197401/how-can-i-get-the-element-the-caret-is-in-with-javascript-when-using-contentedi
     // by You
     function getSelectionStart() {
-        var node = document.getSelection().anchorNode,
+        var node = this.options.ownerDocument.getSelection().anchorNode,
             startNode = (node && node.nodeType === 3 ? node.parentNode : node);
         return startNode;
     }
@@ -79,18 +86,18 @@ if (typeof module === 'object') {
             sel,
             len,
             container;
-        if (window.getSelection !== undefined) {
-            sel = window.getSelection();
+        if (this.options.contentWindow.getSelection !== undefined) {
+            sel = this.options.contentWindow.getSelection();
             if (sel.rangeCount) {
-                container = document.createElement('div');
+                container = this.options.ownerDocument.createElement('div');
                 for (i = 0, len = sel.rangeCount; i < len; i += 1) {
                     container.appendChild(sel.getRangeAt(i).cloneContents());
                 }
                 html = container.innerHTML;
             }
-        } else if (document.selection !== undefined) {
-            if (document.selection.type === 'Text') {
-                html = document.selection.createRange().htmlText;
+        } else if (this.options.ownerDocument.selection !== undefined) {
+            if (this.options.ownerDocument.selection.type === 'Text') {
+                html = this.options.ownerDocument.selection.createRange().htmlText;
             }
         }
         return html;
@@ -119,6 +126,8 @@ if (typeof module === 'object') {
             disableToolbar: false,
             disableEditing: false,
             elementsContainer: false,
+            contentWindow: window,
+            ownerDocument: document,
             firstHeader: 'h3',
             forcePlainText: true,
             placeholder: 'Type your text',
@@ -138,17 +147,21 @@ if (typeof module === 'object') {
         isIE: ((navigator.appName === 'Microsoft Internet Explorer') || ((navigator.appName === 'Netscape') && (new RegExp('Trident/.*rv:([0-9]{1,}[.0-9]{0,})').exec(navigator.userAgent) !== null))),
 
         init: function (elements, options) {
+            this.options = extend(options, this.defaults);
             this.setElementSelection(elements);
             if (this.elements.length === 0) {
                 return;
             }
             this.parentElements = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'pre'];
-            this.id = document.querySelectorAll('.medium-editor-toolbar').length + 1;
-            this.options = extend(options, this.defaults);
+            if (!this.options.elementsContainer) {
+                this.options.elementsContainer = document.body;
+            }
+            this.id = this.options.elementsContainer.querySelectorAll('.medium-editor-toolbar').length + 1;
             return this.setup();
         },
 
         setup: function () {
+            this.events = [];
             this.isActive = true;
             this.initElements()
                 .bindSelect()
@@ -156,6 +169,28 @@ if (typeof module === 'object') {
                 .setPlaceholders()
                 .bindWindowActions()
                 .passInstance();
+        },
+
+        on: function(target, event, listener, useCapture) {
+            target.addEventListener(event, listener, useCapture);
+            this.events.push([target, event, listener, useCapture]);
+        },
+
+        off: function(target, event, listener, useCapture) {
+            var index = this.events.indexOf([target, event, listener, useCapture]),
+                e;
+            if(index !== -1) {
+                e = this.events.splice(index, 1);
+                e[0].removeEventListener(e[1], e[2], e[3]);
+            }
+        },
+
+        removeAllEvents: function() {
+            var e = this.events.pop();
+            while(e) {
+                e[0].removeEventListener(e[1], e[2], e[3]);
+                e = this.events.pop();
+            }
         },
 
         initElements: function () {
@@ -179,9 +214,6 @@ if (typeof module === 'object') {
             }
             // Init toolbar
             if (addToolbar) {
-                if (!this.options.elementsContainer) {
-                    this.options.elementsContainer = document.body;
-                }
                 this.initToolbar()
                     .bindButtons()
                     .bindAnchorForm()
@@ -196,7 +228,7 @@ if (typeof module === 'object') {
         },
 
         updateElementList: function () {
-            this.elements = typeof this.elementSelection === 'string' ? document.querySelectorAll(this.elementSelection) : this.elementSelection;
+            this.elements = typeof this.elementSelection === 'string' ? this.options.ownerDocument.querySelectorAll(this.elementSelection) : this.elementSelection;
             if (this.elements.nodeType === 1) {
                 this.elements = [this.elements];
             }
@@ -266,8 +298,8 @@ if (typeof module === 'object') {
 
         bindParagraphCreation: function (index) {
             var self = this;
-            this.elements[index].addEventListener('keypress', function (e) {
-                var node = getSelectionStart(),
+            this.on(this.elements[index], 'keypress', function (e) {
+                var node = getSelectionStart.call(self),
                     tagName;
                 if (e.which === 32) {
                     tagName = node.tagName.toLowerCase();
@@ -277,16 +309,20 @@ if (typeof module === 'object') {
                 }
             });
 
-            this.elements[index].addEventListener('keyup', function (e) {
-                var node = getSelectionStart(),
-                    tagName;
+            this.on(this.elements[index], 'keyup', function (e) {
+                var node = getSelectionStart.call(self),
+                    tagName,
+                    editorElement;
+
                 if (node && node.getAttribute('data-medium-element') && node.children.length === 0 && !(self.options.disableReturn || node.getAttribute('data-disable-return'))) {
                     document.execCommand('formatBlock', false, 'p');
                 }
                 if (e.which === 13) {
-                    node = getSelectionStart();
+                    node = getSelectionStart.call(self);
                     tagName = node.tagName.toLowerCase();
-                    if (!(self.options.disableReturn || this.getAttribute('data-disable-return')) &&
+                    editorElement = self.getSelectionElement();
+
+                    if (!(self.options.disableReturn || editorElement.getAttribute('data-disable-return')) &&
                         tagName !== 'li' && !self.isListItemChild(node)) {
                         if (!e.shiftKey) {
                             document.execCommand('formatBlock', false, 'p');
@@ -319,12 +355,12 @@ if (typeof module === 'object') {
 
         bindReturn: function (index) {
             var self = this;
-            this.elements[index].addEventListener('keypress', function (e) {
+            this.on(this.elements[index], 'keypress', function (e) {
                 if (e.which === 13) {
                     if (self.options.disableReturn || this.getAttribute('data-disable-return')) {
                         e.preventDefault();
                     } else if (self.options.disableDoubleReturn || this.getAttribute('data-disable-double-return')) {
-                        var node = getSelectionStart();
+                        var node = getSelectionStart.call(self);
                         if (node && node.innerText === '\n') {
                             e.preventDefault();
                         }
@@ -338,11 +374,11 @@ if (typeof module === 'object') {
             if (!this.options.bindTab) {
                 return this;
             }
-
-            this.elements[index].addEventListener('keydown', function (e) {
+            var self = this;
+            this.on(this.elements[index], 'keydown', function (e) {
                 if (e.which === 9) {
                     // Override tab only for pre nodes
-                    var tag = getSelectionStart().tagName.toLowerCase();
+                    var tag = getSelectionStart.call(self).tagName.toLowerCase();
                     if (tag === 'pre') {
                         e.preventDefault();
                         document.execCommand('insertHtml', null, '    ');
@@ -370,7 +406,7 @@ if (typeof module === 'object') {
                     'bold': '<button class="medium-editor-action medium-editor-action-bold" data-action="bold" data-element="b">' + buttonLabels.bold + '</button>',
                     'italic': '<button class="medium-editor-action medium-editor-action-italic" data-action="italic" data-element="i">' + buttonLabels.italic + '</button>',
                     'underline': '<button class="medium-editor-action medium-editor-action-underline" data-action="underline" data-element="u">' + buttonLabels.underline + '</button>',
-                    'strikethrough': '<button class="medium-editor-action medium-editor-action-strikethrough" data-action="strikethrough" data-element="strike"><strike>A</strike></button>',
+                    'strikethrough': '<button class="medium-editor-action medium-editor-action-strikethrough" data-action="strikethrough" data-element="strike">' + buttonLabels.strikethrough +'</button>',
                     'superscript': '<button class="medium-editor-action medium-editor-action-superscript" data-action="superscript" data-element="sup">' + buttonLabels.superscript + '</button>',
                     'subscript': '<button class="medium-editor-action medium-editor-action-subscript" data-action="subscript" data-element="sub">' + buttonLabels.subscript + '</button>',
                     'anchor': '<button class="medium-editor-action medium-editor-action-anchor" data-action="anchor" data-element="a">' + buttonLabels.anchor + '</button>',
@@ -382,7 +418,11 @@ if (typeof module === 'object') {
                     'unorderedlist': '<button class="medium-editor-action medium-editor-action-unorderedlist" data-action="insertunorderedlist" data-element="ul">' + buttonLabels.unorderedlist + '</button>',
                     'pre': '<button class="medium-editor-action medium-editor-action-pre" data-action="append-pre" data-element="pre">' + buttonLabels.pre + '</button>',
                     'indent': '<button class="medium-editor-action medium-editor-action-indent" data-action="indent" data-element="ul">' + buttonLabels.indent + '</button>',
-                    'outdent': '<button class="medium-editor-action medium-editor-action-outdent" data-action="outdent" data-element="ul">' + buttonLabels.outdent + '</button>'
+                    'outdent': '<button class="medium-editor-action medium-editor-action-outdent" data-action="outdent" data-element="ul">' + buttonLabels.outdent + '</button>',
+                    'justifyCenter': '<button class="medium-editor-action medium-editor-action-justifyCenter" data-action="justifyCenter" data-element="">' + buttonLabels.justifyCenter + '</button>',
+                    'justifyFull': '<button class="medium-editor-action medium-editor-action-justifyFull" data-action="justifyFull" data-element="">' + buttonLabels.justifyFull + '</button>',
+                    'justifyLeft': '<button class="medium-editor-action medium-editor-action-justifyLeft" data-action="justifyLeft" data-element="">' + buttonLabels.justifyLeft + '</button>',
+                    'justifyRight': '<button class="medium-editor-action medium-editor-action-justifyRight" data-action="justifyRight" data-element="">' + buttonLabels.justifyRight + '</button>'
                 };
             return buttonTemplates[btnType] || false;
         },
@@ -395,6 +435,7 @@ if (typeof module === 'object') {
                     'bold': '<b>B</b>',
                     'italic': '<b><i>I</i></b>',
                     'underline': '<b><u>U</u></b>',
+                    'strikethrough': '<s>A</s>',
                     'superscript': '<b>x<sup>1</sup></b>',
                     'subscript': '<b>x<sub>1</sub></b>',
                     'anchor': '<b>#</b>',
@@ -406,13 +447,18 @@ if (typeof module === 'object') {
                     'unorderedlist': '<b>&bull;</b>',
                     'pre': '<b>0101</b>',
                     'indent': '<b>&rarr;</b>',
-                    'outdent': '<b>&larr;</b>'
+                    'outdent': '<b>&larr;</b>',
+                    'justifyCenter': '<b>C</b>',
+                    'justifyFull': '<b>J</b>',
+                    'justifyLeft': '<b>L</b>',
+                    'justifyRight': '<b>R</b>'
                 };
             if (buttonLabelType === 'fontawesome') {
                 customButtonLabels = {
                     'bold': '<i class="fa fa-bold"></i>',
                     'italic': '<i class="fa fa-italic"></i>',
                     'underline': '<i class="fa fa-underline"></i>',
+                    'strikethrough': '<i class="fa fa-strikethrough"></i>',
                     'superscript': '<i class="fa fa-superscript"></i>',
                     'subscript': '<i class="fa fa-subscript"></i>',
                     'anchor': '<i class="fa fa-link"></i>',
@@ -422,7 +468,11 @@ if (typeof module === 'object') {
                     'unorderedlist': '<i class="fa fa-list-ul"></i>',
                     'pre': '<i class="fa fa-code fa-lg"></i>',
                     'indent': '<i class="fa fa-indent"></i>',
-                    'outdent': '<i class="fa fa-outdent"></i>'
+                    'outdent': '<i class="fa fa-outdent"></i>',
+                    'justifyCenter': '<i class="fa fa-align-center"></i>',
+                    'justifyFull': '<i class="fa fa-align-justify"></i>',
+                    'justifyLeft': '<i class="fa fa-align-left"></i>',
+                    'justifyRight': '<i class="fa fa-align-right"></i>'
                 };
             } else if (typeof buttonLabelType === 'object') {
                 customButtonLabels = buttonLabelType;
@@ -567,11 +617,11 @@ if (typeof module === 'object') {
                 }, self.options.delay);
             };
 
-            document.documentElement.addEventListener('mouseup', this.checkSelectionWrapper);
+            this.on(document.documentElement, 'mouseup', this.checkSelectionWrapper);
 
             for (i = 0; i < this.elements.length; i += 1) {
-                this.elements[i].addEventListener('keyup', this.checkSelectionWrapper);
-                this.elements[i].addEventListener('blur', this.checkSelectionWrapper);
+                this.on(this.elements[i], 'keyup', this.checkSelectionWrapper);
+                this.on(this.elements[i], 'blur', this.checkSelectionWrapper);
             }
             return this;
         },
@@ -582,7 +632,7 @@ if (typeof module === 'object') {
 
             if (this.keepToolbarAlive !== true && !this.options.disableToolbar) {
 
-                newSelection = window.getSelection();
+                newSelection = this.options.contentWindow.getSelection();
                 if (newSelection.toString().trim() === '' ||
                     (this.options.allowMultiParagraphSelection === false && this.hasMultiParagraphs()) ||
                     this.selectionInContentEditableFalse()) {
@@ -610,7 +660,7 @@ if (typeof module === 'object') {
         },
 
         hasMultiParagraphs: function () {
-            var selectionHtml = getSelectionHtml().replace(/<[\S]+><\/[\S]+>/gim, ''),
+            var selectionHtml = getSelectionHtml.call(this).replace(/<[\S]+><\/[\S]+>/gim, ''),
                 hasMultiParagraphs = selectionHtml.match(/<(p|h[0-6]|blockquote)>([\s\S]*?)<\/(p|h[0-6]|blockquote)>/g);
 
             return (hasMultiParagraphs ? hasMultiParagraphs.length : 0);
@@ -632,36 +682,31 @@ if (typeof module === 'object') {
         },
 
         findMatchingSelectionParent: function(testElementFunction) {
-            var selection = window.getSelection(),
-                range, current, parent,
-                result,
-                getElement = function (e) {
-                    var localParent = e;
-                    try {
-                        while (!testElementFunction(localParent)) {
-                            localParent = localParent.parentNode;
-                        }
-                    } catch (errb) {
-                        return false;
-                    }
-                    return localParent;
-                };
-            // First try on current node
-            try {
-                range = selection.getRangeAt(0);
-                current = range.commonAncestorContainer;
-                parent = current.parentNode;
+            var selection = this.options.contentWindow.getSelection(), range, current;
 
-                if (testElementFunction(current)) {
-                    result = current;
-                } else {
-                    result = getElement(parent);
-                }
-                // If not search in the parent nodes.
-            } catch (err) {
-                result = getElement(parent);
+            if (selection.rangeCount === 0) {
+                return false;
             }
-            return result;
+
+            range = selection.getRangeAt(0);
+            current = range.commonAncestorContainer;
+
+            do {
+              if (current.nodeType === 1){
+                if ( testElementFunction(current) )
+                {
+                    return current;
+                }
+                // do not traverse upwards past the nearest containing editor
+                if (current.getAttribute('data-medium-element')) {
+                    return false;
+                }
+              }
+
+              current = current.parentNode;
+            } while (current);
+
+            return false;
         },
 
         getSelectionElement: function () {
@@ -682,7 +727,7 @@ if (typeof module === 'object') {
             }
 
             var buttonHeight = 50,
-                selection = window.getSelection(),
+                selection = this.options.contentWindow.getSelection(),
                 range = selection.getRangeAt(0),
                 boundary = range.getBoundingClientRect(),
                 defaultLeft = (this.options.diffLeft) - (this.toolbar.offsetWidth / 2),
@@ -691,16 +736,16 @@ if (typeof module === 'object') {
             if (boundary.top < buttonHeight) {
                 this.toolbar.classList.add('medium-toolbar-arrow-over');
                 this.toolbar.classList.remove('medium-toolbar-arrow-under');
-                this.toolbar.style.top = buttonHeight + boundary.bottom - this.options.diffTop + window.pageYOffset - this.toolbar.offsetHeight + 'px';
+                this.toolbar.style.top = buttonHeight + boundary.bottom - this.options.diffTop + this.options.contentWindow.pageYOffset - this.toolbar.offsetHeight + 'px';
             } else {
                 this.toolbar.classList.add('medium-toolbar-arrow-under');
                 this.toolbar.classList.remove('medium-toolbar-arrow-over');
-                this.toolbar.style.top = boundary.top + this.options.diffTop + window.pageYOffset - this.toolbar.offsetHeight + 'px';
+                this.toolbar.style.top = boundary.top + this.options.diffTop + this.options.contentWindow.pageYOffset - this.toolbar.offsetHeight + 'px';
             }
             if (middleBoundary < halfOffsetWidth) {
                 this.toolbar.style.left = defaultLeft + halfOffsetWidth + 'px';
-            } else if ((window.innerWidth - middleBoundary) < halfOffsetWidth) {
-                this.toolbar.style.left = window.innerWidth + defaultLeft - halfOffsetWidth + 'px';
+            } else if ((this.options.contentWindow.innerWidth - middleBoundary) < halfOffsetWidth) {
+                this.toolbar.style.left = this.options.contentWindow.innerWidth + defaultLeft - halfOffsetWidth + 'px';
             } else {
                 this.toolbar.style.left = defaultLeft + middleBoundary + 'px';
             }
@@ -766,7 +811,7 @@ if (typeof module === 'object') {
                     }
                 };
             for (i = 0; i < buttons.length; i += 1) {
-                buttons[i].addEventListener('click', triggerAction);
+                this.on(buttons[i], 'click', triggerAction);
             }
             this.setFirstAndLastItems(buttons);
             return this;
@@ -788,9 +833,9 @@ if (typeof module === 'object') {
             } else if (action === 'anchor') {
                 this.triggerAnchorAction(e);
             } else if (action === 'image') {
-                document.execCommand('insertImage', false, window.getSelection());
+                this.options.ownerDocument.execCommand('insertImage', false, this.options.contentWindow.getSelection());
             } else {
-                document.execCommand(action, false, null);
+                this.options.ownerDocument.execCommand(action, false, null);
                 this.setToolbarPosition();
             }
         },
@@ -820,7 +865,7 @@ if (typeof module === 'object') {
             var selectedParentElement = this.getSelectedParentElement();
             if (selectedParentElement.tagName &&
                     selectedParentElement.tagName.toLowerCase() === 'a') {
-                document.execCommand('unlink', false, null);
+                this.options.ownerDocument.execCommand('unlink', false, null);
             } else {
                 if (this.anchorForm.style.display === 'block') {
                     this.showToolbarActions();
@@ -838,7 +883,7 @@ if (typeof module === 'object') {
             // https://developer.mozilla.org/en-US/docs/Rich-Text_Editing_in_Mozilla
             if (el === 'blockquote' && selectionData.el &&
                 selectionData.el.parentNode.tagName.toLowerCase() === 'blockquote') {
-                return document.execCommand('outdent', false, null);
+                return this.options.ownerDocument.execCommand('outdent', false, null);
             }
             if (selectionData.tagName === el) {
                 el = 'p';
@@ -849,11 +894,11 @@ if (typeof module === 'object') {
             // http://stackoverflow.com/questions/1816223/rich-text-editor-with-blockquote-function/1821777#1821777
             if (this.isIE) {
                 if (el === 'blockquote') {
-                    return document.execCommand('indent', false, el);
+                    return this.options.ownerDocument.execCommand('indent', false, el);
                 }
                 el = '<' + el + '>';
             }
-            return document.execCommand('formatBlock', false, el);
+            return this.options.ownerDocument.execCommand('formatBlock', false, el);
         },
 
         getSelectionData: function (el) {
@@ -906,11 +951,11 @@ if (typeof module === 'object') {
         },
 
         saveSelection: function() {
-            this.savedSelection = saveSelection();
+            this.savedSelection = saveSelection.call(this);
         },
 
         restoreSelection: function() {
-            restoreSelection(this.savedSelection);
+            restoreSelection.call(this, this.savedSelection);
         },
 
         showAnchorForm: function (link_value) {
@@ -928,12 +973,12 @@ if (typeof module === 'object') {
                 linkSave = this.anchorForm.querySelector('a.medium-editor-toobar-anchor-save'),
                 self = this;
 
-            this.anchorForm.addEventListener('click', function (e) {
+            this.on(this.anchorForm, 'click', function (e) {
                 e.stopPropagation();
                 self.keepToolbarAlive = true;
             });
 
-            this.anchorInput.addEventListener('keyup', function (e) {
+            this.on(this.anchorInput, 'keyup', function (e) {
                 var button = null,
                     target;
 
@@ -954,7 +999,7 @@ if (typeof module === 'object') {
                 }
             });
 
-            linkSave.addEventListener('click', function(e) {
+            this.on(linkSave, 'click', function(e) {
                 var button = null,
                     target;
                 e.preventDefault();
@@ -972,30 +1017,30 @@ if (typeof module === 'object') {
                 self.createLink(self.anchorInput, target, button);
             }, true);
 
-            this.anchorInput.addEventListener('click', function (e) {
+            this.on(this.anchorInput, 'click', function (e) {
                 // make sure not to hide form when cliking into the input
                 e.stopPropagation();
                 self.keepToolbarAlive = true;
             });
 
             // Hide the anchor form when focusing outside of it.
-            document.body.addEventListener('click', function (e) {
+            this.on(this.options.ownerDocument.body, 'click', function (e) {
                 if (e.target !== self.anchorForm && !isDescendant(self.anchorForm, e.target) && !isDescendant(self.toolbarActions, e.target)) {
                     self.keepToolbarAlive = false;
                     self.checkSelection();
                 }
             }, true);
-            document.body.addEventListener('focus', function (e) {
+            this.on(this.options.ownerDocument.body, 'focus', function (e) {
                 if (e.target !== self.anchorForm && !isDescendant(self.anchorForm, e.target) && !isDescendant(self.toolbarActions, e.target)) {
                     self.keepToolbarAlive = false;
                     self.checkSelection();
                 }
             }, true);
 
-            linkCancel.addEventListener('click', function (e) {
+            this.on(linkCancel, 'click', function (e) {
                 e.preventDefault();
                 self.showToolbarActions();
-                restoreSelection(self.savedSelection);
+                restoreSelection.call(self, self.savedSelection);
             });
             return this;
         },
@@ -1035,11 +1080,11 @@ if (typeof module === 'object') {
 
             self.anchorPreview.classList.add('medium-toolbar-arrow-over');
             self.anchorPreview.classList.remove('medium-toolbar-arrow-under');
-            self.anchorPreview.style.top = Math.round(buttonHeight + boundary.bottom - self.options.diffTop + window.pageYOffset - self.anchorPreview.offsetHeight) + 'px';
+            self.anchorPreview.style.top = Math.round(buttonHeight + boundary.bottom - self.options.diffTop + this.options.contentWindow.pageYOffset - self.anchorPreview.offsetHeight) + 'px';
             if (middleBoundary < halfOffsetWidth) {
                 self.anchorPreview.style.left = defaultLeft + halfOffsetWidth + 'px';
-            } else if ((window.innerWidth - middleBoundary) < halfOffsetWidth) {
-                self.anchorPreview.style.left = window.innerWidth + defaultLeft - halfOffsetWidth + 'px';
+            } else if ((this.options.contentWindow.innerWidth - middleBoundary) < halfOffsetWidth) {
+                self.anchorPreview.style.left = this.options.contentWindow.innerWidth + defaultLeft - halfOffsetWidth + 'px';
             } else {
                 self.anchorPreview.style.left = defaultLeft + middleBoundary + 'px';
             }
@@ -1072,30 +1117,30 @@ if (typeof module === 'object') {
 
                         // cleanup
                         clearInterval(interval_timer);
-                        self.anchorPreview.removeEventListener('mouseover', stamp);
-                        self.anchorPreview.removeEventListener('mouseout', unstamp);
-                        anchorEl.removeEventListener('mouseover', stamp);
-                        anchorEl.removeEventListener('mouseout', unstamp);
+                        self.off(self.anchorPreview, 'mouseover', stamp);
+                        self.off(self.anchorPreview, 'mouseout', unstamp);
+                        self.off(anchorEl, 'mouseover', stamp);
+                        self.off(anchorEl, 'mouseout', unstamp);
 
                     }
                 }, 200);
 
-            self.anchorPreview.addEventListener('mouseover', stamp);
-            self.anchorPreview.addEventListener('mouseout', unstamp);
-            anchorEl.addEventListener('mouseover', stamp);
-            anchorEl.addEventListener('mouseout', unstamp);
+            this.on(self.anchorPreview, 'mouseover', stamp);
+            this.on(self.anchorPreview, 'mouseout', unstamp);
+            this.on(anchorEl, 'mouseover', stamp);
+            this.on(anchorEl, 'mouseout', unstamp);
         },
 
         createAnchorPreview: function () {
             var self = this,
-                anchorPreview = document.createElement('div');
+                anchorPreview = this.options.ownerDocument.createElement('div');
 
             anchorPreview.id = 'medium-editor-anchor-preview-' + this.id;
             anchorPreview.className = 'medium-editor-anchor-preview';
             anchorPreview.innerHTML = this.anchorPreviewTemplate();
             this.options.elementsContainer.appendChild(anchorPreview);
 
-            anchorPreview.addEventListener('click', function () {
+            this.on(anchorPreview, 'click', function () {
                 self.anchorPreviewClickHandler();
             });
 
@@ -1112,8 +1157,8 @@ if (typeof module === 'object') {
             if (this.activeAnchor) {
 
                 var self = this,
-                    range = document.createRange(),
-                    sel = window.getSelection();
+                    range = this.options.ownerDocument.createRange(),
+                    sel = this.options.contentWindow.getSelection();
 
                 range.selectNodeContents(self.activeAnchor);
                 sel.removeAllRanges();
@@ -1136,7 +1181,7 @@ if (typeof module === 'object') {
                 leaveAnchor = function () {
                     // mark the anchor as no longer hovered, and stop listening
                     overAnchor = false;
-                    self.activeAnchor.removeEventListener('mouseout', leaveAnchor);
+                    self.off(self.activeAnchor, 'mouseout', leaveAnchor);
                 };
 
             if (e.target && e.target.tagName.toLowerCase() === 'a') {
@@ -1154,7 +1199,7 @@ if (typeof module === 'object') {
                     return true;
                 }
                 this.activeAnchor = e.target;
-                this.activeAnchor.addEventListener('mouseout', leaveAnchor);
+                this.on(this.activeAnchor, 'mouseout', leaveAnchor);
                 // show the anchor preview according to the configured delay
                 // if the mouse has not left the anchor tag in that time
                 setTimeout(function () {
@@ -1173,7 +1218,7 @@ if (typeof module === 'object') {
                 self.editorAnchorObserver(e);
             };
             for (i = 0; i < this.elements.length; i += 1) {
-                this.elements[i].addEventListener('mouseover', this.editorAnchorObserverWrapper);
+                this.on(this.elements[i], 'mouseover', this.editorAnchorObserverWrapper);
             }
             return this;
         },
@@ -1183,13 +1228,14 @@ if (typeof module === 'object') {
             return (re.test(value) ? '' : 'http://') + value;
         },
 
-        setTargetBlank: function () {
-            var el = getSelectionStart(),
-                i;
+        setTargetBlank: function (el) {
+            var i;
+            el = el || getSelectionStart.call(this);
             if (el.tagName.toLowerCase() === 'a') {
                 el.target = '_blank';
             } else {
                 el = el.getElementsByTagName('a');
+
                 for (i = 0; i < el.length; i += 1) {
                     el[i].target = '_blank';
                 }
@@ -1197,7 +1243,7 @@ if (typeof module === 'object') {
         },
 
         setButtonClass: function (buttonClass) {
-            var el = getSelectionStart(),
+            var el = getSelectionStart.call(this),
                 classes = buttonClass.split(' '),
                 i, j;
             if (el.tagName.toLowerCase() === 'a') {
@@ -1222,13 +1268,13 @@ if (typeof module === 'object') {
                 return;
             }
 
-            restoreSelection(this.savedSelection);
+            restoreSelection.call(this, this.savedSelection);
 
             if (this.options.checkLinkFormat) {
                 input.value = this.checkLinkFormat(input.value);
             }
 
-            document.execCommand('createLink', false, input.value);
+            this.options.ownerDocument.execCommand('createLink', false, input.value);
 
             if (this.options.targetBlank || target === "_blank") {
                 this.setTargetBlank();
@@ -1239,8 +1285,8 @@ if (typeof module === 'object') {
             }
 
             if (this.options.targetBlank || target === "_blank" || buttonClass) {
-                event = document.createEvent("HTMLEvents");
-                event.initEvent("input", true, true, window);
+                event = this.options.ownerDocument.createEvent("HTMLEvents");
+                event.initEvent("input", true, true, this.options.contentWindow);
                 for (i = 0; i < this.elements.length; i += 1) {
                     this.elements[i].dispatchEvent(event);
                 }
@@ -1262,7 +1308,7 @@ if (typeof module === 'object') {
                     }
                 }, 100);
             };
-            window.addEventListener('resize', this.windowResizeHandler);
+            this.on(this.options.contentWindow, 'resize', this.windowResizeHandler);
             return this;
         },
 
@@ -1289,22 +1335,12 @@ if (typeof module === 'object') {
                 delete this.anchorPreview;
             }
 
-            document.documentElement.removeEventListener('mouseup', this.checkSelectionWrapper);
-            window.removeEventListener('resize', this.windowResizeHandler);
-
             for (i = 0; i < this.elements.length; i += 1) {
-                this.elements[i].removeEventListener('mouseover', this.editorAnchorObserverWrapper);
-                this.elements[i].removeEventListener('keyup', this.checkSelectionWrapper);
-                this.elements[i].removeEventListener('blur', this.checkSelectionWrapper);
-                this.elements[i].removeEventListener('paste', this.pasteWrapper);
+                this.elements[i].removeAttribute('contentEditable');
                 this.elements[i].removeAttribute('data-medium-element');
-                if (this.elements[i].getAttribute('data-contenteditable')) {
-                    this.elements[i].setAttribute('contentEditable', this.elements[i].getAttribute('data-contenteditable'));
-                } else {
-                    this.elements[i].removeAttribute('contentEditable');
-                }
             }
 
+            this.removeAllEvents();
         },
 
         htmlEntities: function (str) {
@@ -1344,14 +1380,15 @@ if (typeof module === 'object') {
                                 }
                             }
                         }
-                        document.execCommand('insertHTML', false, html);
+                        self.options.ownerDocument.execCommand('insertHTML', false, html);
                     } else {
-                        document.execCommand('insertHTML', false, e.clipboardData.getData('text/plain'));
+                        html = self.htmlEntities(e.clipboardData.getData('text/plain'));
+                        self.options.ownerDocument.execCommand('insertHTML', false, html);
                     }
                 }
             };
             for (i = 0; i < this.elements.length; i += 1) {
-                this.elements[i].addEventListener('paste', this.pasteWrapper);
+                this.on(this.elements[i], 'paste', this.pasteWrapper);
             }
             return this;
         },
@@ -1377,8 +1414,8 @@ if (typeof module === 'object') {
                 };
             for (i = 0; i < this.elements.length; i += 1) {
                 activatePlaceholder(this.elements[i]);
-                this.elements[i].addEventListener('blur', placeholderWrapper);
-                this.elements[i].addEventListener('keypress', placeholderWrapper);
+                this.on(this.elements[i], 'blur', placeholderWrapper);
+                this.on(this.elements[i], 'keypress', placeholderWrapper);
             }
             return this;
         },
@@ -1433,15 +1470,20 @@ if (typeof module === 'object') {
                 elList = text.split('<br><br>');
 
                 this.pasteHTML('<p>' + elList.join('</p><p>') + '</p>');
-                document.execCommand('insertText', false, "\n");
+                this.options.ownerDocument.execCommand('insertText', false, "\n");
 
                 // block element cleanup
-                elList = el.querySelectorAll('p,div,br');
+                elList = el.querySelectorAll('a,p,div,br');
                 for (i = 0; i < elList.length; i += 1) {
 
                     workEl = elList[i];
 
                     switch (workEl.tagName.toLowerCase()) {
+                    case 'a':
+                        if (this.options.targetBlank){
+                          this.setTargetBlank(workEl);
+                        }
+                        break;
                     case 'p':
                     case 'div':
                         this.filterCommonBlocks(workEl);
@@ -1463,9 +1505,9 @@ if (typeof module === 'object') {
         },
 
         pasteHTML: function (html) {
-            var elList, workEl, i, fragmentBody, pasteBlock = document.createDocumentFragment();
+            var elList, workEl, i, fragmentBody, pasteBlock = this.options.ownerDocument.createDocumentFragment();
 
-            pasteBlock.appendChild(document.createElement('body'));
+            pasteBlock.appendChild(this.options.ownerDocument.createElement('body'));
 
             fragmentBody = pasteBlock.querySelector('body');
             fragmentBody.innerHTML = html;
@@ -1487,7 +1529,7 @@ if (typeof module === 'object') {
                 }
 
             }
-            document.execCommand('insertHTML', false, fragmentBody.innerHTML.replace(/&nbsp;/g, ' '));
+            this.options.ownerDocument.execCommand('insertHTML', false, fragmentBody.innerHTML.replace(/&nbsp;/g, ' '));
         },
         isCommonBlock: function (el) {
             return (el && (el.tagName.toLowerCase() === 'p' || el.tagName.toLowerCase() === 'div'));
@@ -1538,7 +1580,7 @@ if (typeof module === 'object') {
             for (i = 0; i < spans.length; i += 1) {
 
                 el = spans[i];
-                new_el = document.createElement(el.classList.contains('bold') ? 'b' : 'i');
+                new_el = this.options.ownerDocument.createElement(el.classList.contains('bold') ? 'b' : 'i');
 
                 if (el.classList.contains('bold') && el.classList.contains('italic')) {
 
@@ -1563,7 +1605,7 @@ if (typeof module === 'object') {
                 if (/^\s*$/.test()) {
                     el.parentNode.removeChild(el);
                 } else {
-                    el.parentNode.replaceChild(document.createTextNode(el.innerText), el);
+                    el.parentNode.replaceChild(this.options.ownerDocument.createTextNode(el.innerText), el);
                 }
 
             }

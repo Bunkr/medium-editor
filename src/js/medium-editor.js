@@ -1049,6 +1049,7 @@ else if (typeof define === 'function' && define.amd) {
 
 
         hideAnchorPreview: function () {
+            if( !this.anchorPreview ){ return; }
             this.anchorPreview.classList.remove('medium-editor-anchor-preview-active');
         },
 

@@ -128,6 +128,7 @@ else if (typeof define === 'function' && define.amd) {
             disableToolbar: false,
             disableEditing: false,
             elementsContainer: false,
+            elementBoundary: false,
             contentWindow: window,
             ownerDocument: document,
             firstHeader: 'h3',
@@ -735,6 +736,13 @@ else if (typeof define === 'function' && define.amd) {
                 defaultLeft = (this.options.diffLeft) - (this.toolbar.offsetWidth / 2),
                 middleBoundary = (boundary.left + boundary.right) / 2,
                 halfOffsetWidth = this.toolbar.offsetWidth / 2;
+            // Force max limits of boundary box
+            if (this.options.elementBoundary) {
+                var elementBoundary = this.options.elementBoundary.getBoundingClientRect();
+                if (boundary.top < elementBoundary.top && boundary.bottom > elementBoundary.bottom) {
+                    boundary = elementBoundary;
+                }
+            }
             if (boundary.top < buttonHeight) {
                 this.toolbar.classList.add('medium-toolbar-arrow-over');
                 this.toolbar.classList.remove('medium-toolbar-arrow-under');
